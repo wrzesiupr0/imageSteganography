@@ -4,18 +4,24 @@
 
 
 
+
 int main(){
 
-    bmp::BMP sample("C:\\PJATK\\PJC\\sample3.bmp");
+    bmp::BMP sample("C:\\PJATK\\PJC\\sample10.bmp");
     sample.getFileMetadata();
-    std::cout << sample.fileHeader.fileCode << std::endl;
-//    std::cout << "\nTELL2\n" << sample.inputFile.tellg();
+    sample.setBMPPixelsBinary();
     sample.printBITMAPINFOHEADER();
-    sample.getBMPPixels();
-    std::cout << "\nOffset: " << sample.fileHeader.offset << ' ' << sample.bitmapInfoHeader.biSize;
-    sample.inputFile.seekg(0, sample.inputFile.beg);
-    std::cout << "VALIDATION: " << sample.isFileBMP() << ' ' << sample.isFile24bpp()
-    << '\n' << sample.inputFile.tellg();
+    std::cout << "\nFILE HEADER\n" << sample.fileHeader.reserved1
+    << ' ' << sample.fileHeader.reserved2 << '\n'
+    << ' ' << sample.fileHeader.fileCode << ' '
+    << sample.fileHeader.fileSize;
+    std::cout << '\n' << '\n' << sample.hasImageHasMessage() << '\n';
+    int x = sample.getCodedMessageLength();
+    std::cout << "LENGTH: " << x << '\n';
+//    sample.codeMessageToImage("XD");
+//    sample.setDoesFileHaveMessageFlag();
+//    sample.writeImage("C:\\PJATK\\PJC\\sample10.bmp");
+
 
 
     return 0;

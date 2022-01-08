@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <bitset>
 
 namespace bmp {
 #pragma pack(push, 1)
@@ -42,53 +43,149 @@ namespace bmp {
 #pragma pack(pop)
 
     struct BMP {
+        std::string path;
         std::ifstream inputFile;
         BITMAPFILEHEADER fileHeader;
         BITMAPINFOHEADER bitmapInfoHeader;
-        std::vector<uint8_t> pixels;
+        std::vector<std::bitset<8>> pixels;
         std::vector<char> rawMetadata;
         uint32_t row_stride{ 0 };
 
         BMP(const std::string& path) {
-            inputFile = std::ifstream(path, std::ios::in|std::ios::binary);
+            if (!isFileBMPExtension(path)) {
+                std::cerr << "File extension is not bmp!";
+                exit(10);
+            } else {
+                inputFile = std::ifstream(path, std::ios::in | std::ios::binary);
+            }
         }
 
         void getFileMetadata() {
             inputFile.read((char *) &fileHeader, sizeof(fileHeader));
             inputFile.read((char *) &bitmapInfoHeader, sizeof(bitmapInfoHeader));
-
-        }
-
-        void getBMPPixels() {
-            inputFile.seekg(fileHeader.offset, std::ifstream::beg);
-            std::cout << "\n Pixels: " << pixels.size() << '\t';
-            pixels.resize(bitmapInfoHeader.biSizeImage);
-            std::cout << "Pixels resize: " << pixels.size() << '\n' << pixels.size() << '\n';
-            char c;
-            int sum = 0;
-            while (inputFile.get(c)) {
-//                std::cout << "C: " << (uint8_t)c << '\t';
-//                char d = 0;
-                for (int i = 7; i >= 0; i--)
-                    std::cout << ((c >> i) & 1);
-
-                if (sum == 2){
-                    sum = 0;
-                    std::cout << '\n';
-                } else {
-                    sum++;
-                    std::cout << ' ';
-                }
-                std::cout << "Pos: " << inputFile.tellg() << ' ';
+            if (!isFileRealBMP()) {
+                std::cerr << "BMP file is invalid!";
+                exit(11);
             }
-//            if (bitmapInfoHeader.biWidth % 4 == 0) {
-//                inputFile.read((char*)pixels.data(), pixels.size());
-////                fileHeader.fileSize += static_cast<uint32_t>(pixels.size());
-//            }
+        }
+
+        unsigned int getNumberOfAvailableBits () {
+            return bitmapInfoHeader.biWidth * bitmapInfoHeader.biHeight - 16;
+        }
+
+        std::vector<std::bitset<8>> getBinaryOfString(const std::string& msg) {
+            std::vector<std::bitset<8>> result;
+            for (std::size_t i = 0; i < msg.size(); ++i)
+            {
+                result.push_back(std::bitset<8>(msg.c_str()[i]));
+            }
+            return result;
+        }
+
+        bool canMessageBeCoded(const std::string& msg) {
+            return msg.size() * 8 <= getNumberOfAvailableBits();
+        }
+
+        void setDoesFileHaveMessageFlag() {
+            fileHeader.reserved1 = 2137;
+            fileHeader.reserved2 = 7312;
+        }
+
+        void codeMessageLength(const std::string& msg) {
+            std::bitset<16> msgSizeBits(msg.size());
+            for (int i = 0; i < 15; i++) {
+                pixels[i*3][0] = msgSizeBits[i];
+            }
+        }
+
+        int getCodedMessageLength() {
+            std::bitset<16> msgSizeBits;
+            for (int i = 0; i < 15; i++) {
+                msgSizeBits[i] = pixels[i*3][0];
+            }
+            int msgLength;
+            msgLength = (int)(msgSizeBits.to_ulong());
+            return msgLength;
+        }
+        void codeMessageToImage(const std::string& msg) {
+            codeMessageLength(msg);
+            std::vector<std::bitset<8>> binaryMsg;
+            binaryMsg = getBinaryOfString(msg);
+            for (int i = 0; i < binaryMsg.size(); i++) {
+                for (int j = 0; j < 8; j++) {
+                    pixels[j*3 + 16 + 24*i][0] = binaryMsg[i][j];
+                }
+            }
+        }
+
+        std::string decodeMessageFromImage() {
+            std::vector<std::bitset<8>> binaryMsg;
+            int msgLength = getCodedMessageLength();
+            unsigned long tempLong;
+            unsigned char c;
+            for (int i = 0; i < msgLength * 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    binaryMsg[i][j] = pixels[j*3 + 16 + 24*i][0];
+                }
+                tempLong = binaryMsg[i].to_ulong();
+                c = static_cast<unsigned char>(tempLong);
+                outputFile.put(c);
+            }
 
         }
 
-        bool isFileBMP() {
+        bool hasImageHasMessage() {
+            return (fileHeader.reserved1 == 2137 && fileHeader.reserved2 == 7312);
+        }
+
+        void writeImage(std::string pathOut) {
+            inputFile.close();
+            std::cout << "\nFILE HEADER\n" << fileHeader.reserved1
+                      << ' ' << fileHeader.reserved2 << '\n'
+                      << ' ' << fileHeader.fileCode << ' '
+                      << fileHeader.fileSize;
+            std::ofstream outputFile(pathOut, std::ios::out | std::ios::binary);
+            unsigned long tempLong;
+            unsigned char c;
+            if (outputFile) {
+                outputFile.write((char * ) &fileHeader, sizeof(fileHeader));
+                outputFile.write((char * ) &bitmapInfoHeader, sizeof(bitmapInfoHeader));
+                for (auto & pixel : pixels) {
+                    tempLong = pixel.to_ulong();
+                    c = static_cast<unsigned char>(tempLong);
+                    outputFile.put(c);
+                }
+            } else {
+                std::cerr << "Unable to open output file!";
+                exit(12);
+            }
+        }
+
+        void setBMPPixelsBinary() {
+            inputFile.seekg(fileHeader.offset, std::ifstream::beg);
+            char c;
+
+            while (inputFile.get(c)) {
+                std::bitset<8> byte(c);
+                pixels.push_back(byte);
+            }
+            std::cout << "BINARIES \n";
+            for (auto i : pixels) {
+                std::cout << i << ' ';
+            }
+            std::cout << "BINARIES \n";
+        }
+
+
+        bool isFileBMPExtension (const std::string& path) {
+            std::string extension = path.substr(path.find_last_of('.') + 1);
+            std::for_each(extension.begin(), extension.end(), [](char &c) {
+                c = std::tolower(c);
+            });
+            return extension == "bmp";
+        }
+
+        bool isFileRealBMP() {
             return fileHeader.fileCode == 0x4D42;
         }
 
