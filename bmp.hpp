@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <bitset>
+#include <sstream>
 
 namespace bmp {
 #pragma pack(push, 1)
@@ -93,14 +94,14 @@ namespace bmp {
 
         void codeMessageLength(const std::string& msg) {
             std::bitset<16> msgSizeBits(msg.size());
-            for (int i = 0; i < 15; i++) {
+            for (int i = 0; i < 16; i++) {
                 pixels[i*3][0] = msgSizeBits[i];
             }
         }
 
-        int getCodedMessageLength() {
+        int decodeMessageLength() {
             std::bitset<16> msgSizeBits;
-            for (int i = 0; i < 15; i++) {
+            for (int i = 0; i < 16; i++) {
                 msgSizeBits[i] = pixels[i*3][0];
             }
             int msgLength;
@@ -111,27 +112,39 @@ namespace bmp {
             codeMessageLength(msg);
             std::vector<std::bitset<8>> binaryMsg;
             binaryMsg = getBinaryOfString(msg);
+            std::cout << "Binary length: " << binaryMsg.size();
+            std::cout << "\nMESSAGE BINARY\t" << binaryMsg[0] << ' ' << binaryMsg[1];
             for (int i = 0; i < binaryMsg.size(); i++) {
+                std::cout << "\nkodowanko znaku " << i << " tu:\t";
                 for (int j = 0; j < 8; j++) {
-                    pixels[j*3 + 16 + 24*i][0] = binaryMsg[i][j];
+                    std::cout << "Przed nr " << j*3 + 48 + 24*i << ": " << pixels[j*3 + 48 + 24*i] << '\n';
+                    pixels[j*3 + 48 + 24*i][0] = binaryMsg[i][j];
+                    std::cout << "Po nr " << j*3 + 48 + 24*i << ": " << pixels[j*3 + 48 + 24*i] << '\n';
                 }
             }
+//            std::cout << "BINARIES 2 \n";
+//            for (auto i : pixels) {
+//                std::cout << i << ' ';
+//            }
+//            std::cout << "BINARIES 2 \n";
         }
 
         std::string decodeMessageFromImage() {
-            std::vector<std::bitset<8>> binaryMsg;
-            int msgLength = getCodedMessageLength();
+            int msgLength = decodeMessageLength();
+            std::vector<std::bitset<8>> binaryMsg(msgLength);
+            std::stringstream messageStream;
             unsigned long tempLong;
             unsigned char c;
-            for (int i = 0; i < msgLength * 8; i++) {
+            for (int i = 0; i < msgLength; i++) {
                 for (int j = 0; j < 8; j++) {
-                    binaryMsg[i][j] = pixels[j*3 + 16 + 24*i][0];
+                    binaryMsg[i][j] = pixels[j*3 + 48 + 24*i][0];
                 }
                 tempLong = binaryMsg[i].to_ulong();
                 c = static_cast<unsigned char>(tempLong);
-                outputFile.put(c);
+                messageStream << c;
             }
-
+            std::cout << "\nMessage in function\t" << messageStream.str();
+            return messageStream.str();
         }
 
         bool hasImageHasMessage() {
@@ -169,11 +182,16 @@ namespace bmp {
                 std::bitset<8> byte(c);
                 pixels.push_back(byte);
             }
-            std::cout << "BINARIES \n";
-            for (auto i : pixels) {
-                std::cout << i << ' ';
+//            std::cout << "BINARIES \n";
+//            for (auto i : pixels) {
+//                std::cout << i << ' ';
+//            }
+//            std::cout << "BINARIES \n";
+            for (auto i = 0; i < 200; i++){
+                if (i % 3 != 0)
+                    continue;
+                std::cout << "Pixels for " << i << ": " << pixels[i] << '\t' << pixels[i][0] << "\n";
             }
-            std::cout << "BINARIES \n";
         }
 
 

@@ -16,9 +16,11 @@ int main(){
     << ' ' << sample.fileHeader.fileCode << ' '
     << sample.fileHeader.fileSize;
     std::cout << '\n' << '\n' << sample.hasImageHasMessage() << '\n';
-    int x = sample.getCodedMessageLength();
+    int x = sample.decodeMessageLength();
     std::cout << "LENGTH: " << x << '\n';
-//    sample.codeMessageToImage("XD");
+    std::string msg = sample.decodeMessageFromImage();
+    std::cout << "\nMESSAGE:\t" << msg;
+//    sample.codeMessageToImage("Co mi zrobisz jak mnie zlapiesz Kasienko? Jestes super! <3");
 //    sample.setDoesFileHaveMessageFlag();
 //    sample.writeImage("C:\\PJATK\\PJC\\sample10.bmp");
 
