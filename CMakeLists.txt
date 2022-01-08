@@ -3,4 +3,4 @@ project(imageSteganography)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(imageSteganography main.cpp)
+add_executable(imageSteganography main.cpp bmp.hpp)
